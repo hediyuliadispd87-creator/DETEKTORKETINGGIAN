@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Detektor Ketinggian</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080d14;
+      --surface:  #101622;
+      --card:     #141d2e;
+      --border:   #1e2d45;
+      --accent:   #4fc3f7;
+      --green:    #4ff0a0;
+      --yellow:   #f0d44f;
+      --red:      #f05a5a;
+      --text:     #dde8f8;
+      --muted:    #4a5a78;
+    }
+
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      font-family: 'Outfit', sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 16px 60px;
+      gap: 24px;
+    }
+
+    header {
+      text-align: center;
+    }
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+    header p {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    /* ── main altitude display ── */
+    .altitude-card {
+      width: 100%;
+      max-width: 380px;
+      background: radial-gradient(ellipse at 30% 20%, #0e2040, var(--card));
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px 24px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(79,195,247,.07);
+      position: relative;
+      overflow: hidden;
+    }
+    .altitude-card::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(79,195,247,.12), transparent 70%);
+      pointer-events: none;
+    }
+
+    .alt-label {
+      font-size: .7rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .alt-value {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 5rem;
+      line-height: 1;
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(79,195,247,.5);
+      transition: color .3s;
+    }
+    .alt-unit {
+      font-size: 1.2rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* floor estimate */
+    .floor-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+      background: rgba(79,240,160,.08);
+      border: 1px solid rgba(79,240,160,.2);
+      border-radius: 30px;
+      padding: 8px 20px;
+      font-size: .9rem;
+      color: var(--green);
+    }
+    .floor-badge .icon { font-size: 1.2rem; }
+    .floor-badge strong { font-size: 1.3rem; font-family: 'Share Tech Mono', monospace; }
+
+    /* ── gauge bar ── */
+    .gauge-wrap {
+      width: 100%;
+      max-width: 380px;
+    }
+    .gauge-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .72rem;
+      color: var(--muted);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .gauge-track {
+      height: 10px;
+      background: var(--surface);
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .gauge-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--green), var(--accent), var(--yellow));
+      width: 0%;
+      transition: width .4s ease;
+    }
+
+    /* ── sensor cards ── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+      max-width: 380px;
+    }
+    .sensor-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .sensor-card .s-label {
+      font-size: .65rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .sensor-card .s-val {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1.3rem;
+      color: var(--text);
+    }
+    .sensor-card .s-unit {
+      font-size: .7rem;
+      color: var(--muted);
+      margin-left: 3px;
+    }
+
+    /* ── calibration ── */
+    .calibrate-section {
+      width: 100%;
+      max-width: 380px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .calibrate-section h3 {
+      font-size: .8rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .cal-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .cal-row label {
+      font-size: .8rem;
+      color: var(--muted);
+      flex: 1;
+    }
+    .cal-row input {
+      width: 80px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: .9rem;
+      padding: 6px 10px;
+      text-align: right;
+    }
+    .cal-row input:focus { outline: 1px solid var(--accent); }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: .05em;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); opacity: .85; }
+    .btn-primary { background: var(--accent); color: #050a10; }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); margin-top: 8px; }
+
+    /* ── status ── */
+    .status-bar {
+      width: 100%;
+      max-width: 380px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .75rem;
+      color: var(--muted);
+      padding: 0 4px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .status-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 1.5s ease-in-out infinite; }
+    .status-dot.warn   { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+    .status-dot.error  { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── info box ── */
+    .info-box {
+      width: 100%;
+      max-width: 380px;
+      background: rgba(79,195,247,.04);
+      border: 1px solid rgba(79,195,247,.15);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: .75rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .info-box b { color: var(--accent); }
+
+    /* history sparkline */
+    .history-wrap {
+      width: 100%;
+      max-width: 380px;
+    }
+    .history-label {
+      font-size: .68rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    canvas#spark {
+      width: 100%;
+      height: 60px;
+      display: block;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏢 Detektor Ketinggian</h1>
+  <p>Menggunakan Barometer &amp; GPS</p>
+</header>
+
+<!-- status -->
+<div class="status-bar">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">Menginisialisasi sensor…</span>
+</div>
+
+<!-- main altitude -->
+<div class="altitude-card">
+  <div class="alt-label">Ketinggian dari Titik Referensi</div>
+  <div class="alt-value" id="altVal">--</div>
+  <div class="alt-unit">meter</div>
+
+  <div class="floor-badge">
+    <span class="icon">🏬</span>
+    <span>Lantai <strong id="floorNum">?</strong></span>
+  </div>
+</div>
+
+<!-- gauge -->
+<div class="gauge-wrap">
+  <div class="gauge-label">
+    <span>Lantai 1 (0 m)</span>
+    <span>Lantai 20 (60 m)</span>
+  </div>
+  <div class="gauge-track">
+    <div class="gauge-fill" id="gaugeFill"></div>
+  </div>
+</div>
+
+<!-- sensor data grid -->
+<div class="grid">
+  <div class="sensor-card">
+    <div class="s-label">Tekanan Udara</div>
+    <div class="s-val" id="pressure">--<span class="s-unit">hPa</span></div>
+  </div>
+  <div class="sensor-card">
+    <div class="s-label">Ketinggian GPS</div>
+    <div class="s-val" id="gpsAlt">--<span class="s-unit">m</span></div>
+  </div>
+  <div class="sensor-card">
+    <div class="s-label">Akurasi GPS</div>
+    <div class="s-val" id="gpsAcc">--<span class="s-unit">m</span></div>
+  </div>
+  <div class="sensor-card">
+    <div class="s-label">Δ Ketinggian</div>
+    <div class="s-val" id="deltaAlt">0<span class="s-unit">m</span></div>
+  </div>
+</div>
+
+<!-- sparkline -->
+<div class="history-wrap">
+  <div class="history-label">Riwayat Ketinggian (50 sampel terakhir)</div>
+  <canvas id="spark"></canvas>
+</div>
+
+<!-- calibration -->
+<div class="calibrate-section">
+  <h3>⚙️ Kalibrasi</h3>
+  <div class="cal-row">
+    <label>Tinggi per lantai (m)</label>
+    <input type="number" id="floorHeight" value="3" step="0.1" min="1" max="10"/>
+  </div>
+  <div class="cal-row">
+    <label>Referensi tekanan laut (hPa)</label>
+    <input type="number" id="seaLevel" value="1013.25" step="0.01"/>
+  </div>
+  <button class="btn btn-primary" id="btnCalibrate">📍 Atur Lantai Ini sebagai Dasar</button>
+  <button class="btn btn-secondary" id="btnGPS">📡 Paksa Perbarui GPS</button>
+</div>
+
+<!-- info -->
+<div class="info-box">
+  <b>Cara Kerja:</b><br>
+  Detektor ini menggunakan <b>Barometer</b> (tekanan udara) dan <b>GPS Altitude</b> jika tersedia.
+  Setiap kenaikan ~<b>3 m</b> dihitung sebagai 1 lantai.<br><br>
+  <b>Tips:</b> Kalibrasi di lantai dasar untuk hasil terbaik. Akurasi barometer ±0.5–2 m, GPS ±3–10 m.
+</div>
+
+<script>
+  // ── state ──
+  let baselinePressure = null;
+  let baselineGPSAlt   = null;
+  let currentPressure  = null;
+  let currentGPSAlt    = null;
+  let baroSensor       = null;
+  let history          = [];
+  const MAX_HIST = 50;
+
+  const $ = id => document.getElementById(id);
+
+  function setStatus(type, msg) {
+    const dot = $('statusDot');
+    dot.className = 'status-dot ' + type;
+    $('statusText').textContent = msg;
+  }
+
+  // ── barometric altitude formula ──
+  // Hypsometric formula: h = 44330 * (1 - (P/P0)^(1/5.255))
+  function pressureToAltitude(p, p0) {
+    return 44330 * (1 - Math.pow(p / p0, 1 / 5.255));
+  }
+
+  function getFloorHeight() {
+    return parseFloat($('floorHeight').value) || 3;
+  }
+
+  function updateDisplay(altFromRef) {
+    if (altFromRef === null || isNaN(altFromRef)) return;
+
+    const rounded = Math.round(altFromRef * 10) / 10;
+    $('altVal').textContent = rounded.toFixed(1);
+    $('deltaAlt').querySelector('.s-val').childNodes[0].textContent = (rounded >= 0 ? '+' : '') + rounded.toFixed(1);
+
+    // floor calculation (0-based from calibration point)
+    const fh = getFloorHeight();
+    const floorOffset = Math.floor(altFromRef / fh);
+    const floorNum = 1 + floorOffset; // floor 1 = ground
+    $('floorNum').textContent = floorNum < 1 ? 'B' + Math.abs(floorNum - 1) : floorNum;
+
+    // color by height
+    const v = $('altVal');
+    if (altFromRef < 0) v.style.color = '#f0c94f';
+    else if (altFromRef > 50) v.style.color = '#f05a5a';
+    else v.style.color = 'var(--accent)';
+
+    // gauge (0–60 m = floors 1–20)
+    const pct = Math.max(0, Math.min(100, (altFromRef / 60) * 100));
+    $('gaugeFill').style.width = pct + '%';
+
+    // history
+    history.push(rounded);
+    if (history.length > MAX_HIST) history.shift();
+    drawSparkline();
+  }
+
+  // ── sparkline ──
+  function drawSparkline() {
+    const canvas = $('spark');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = canvas.offsetWidth  * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const W = canvas.offsetWidth, H = canvas.offsetHeight;
+
+    if (history.length < 2) return;
+
+    const min = Math.min(...history) - 1;
+    const max = Math.max(...history) + 1;
+    const range = max - min || 1;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // gradient fill
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, 'rgba(79,195,247,.3)');
+    grad.addColorStop(1, 'rgba(79,195,247,0)');
+
+    ctx.beginPath();
+    history.forEach((v, i) => {
+      const x = (i / (MAX_HIST - 1)) * W;
+      const y = H - ((v - min) / range) * (H - 8) - 4;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // fill below
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // ── try Barometer API ──
+  function initBarometer() {
+    if ('Barometer' in window) {
+      try {
+        baroSensor = new Barometer({ frequency: 2 });
+        baroSensor.addEventListener('reading', () => {
+          currentPressure = baroSensor.pressure;
+          const p0 = parseFloat($('seaLevel').value) || 1013.25;
+          const absAlt = pressureToAltitude(currentPressure, p0);
+          $('pressure').childNodes[0].textContent = currentPressure.toFixed(2);
+
+          if (baselinePressure !== null) {
+            const baseAlt = pressureToAltitude(baselinePressure, p0);
+            updateDisplay(absAlt - baseAlt);
+          } else {
+            updateDisplay(0);
+          }
+          setStatus('active', 'Barometer aktif – pembacaan langsung');
+        });
+        baroSensor.addEventListener('error', e => {
+          setStatus('warn', 'Barometer error: ' + e.error.message);
+          fallbackToGPS();
+        });
+        baroSensor.start();
+        return true;
+      } catch(e) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  // ── GPS fallback ──
+  function initGPS() {
+    if (!navigator.geolocation) {
+      setStatus('error', 'GPS tidak tersedia di perangkat ini');
+      return;
+    }
+    setStatus('warn', 'Menggunakan GPS (akurasi lebih rendah)…');
+    watchGPS();
+  }
+
+  let gpsWatch = null;
+  function watchGPS() {
+    if (gpsWatch) navigator.geolocation.clearWatch(gpsWatch);
+    gpsWatch = navigator.geolocation.watchPosition(pos => {
+      const alt = pos.coords.altitude;
+      const acc = pos.coords.altitudeAccuracy;
+
+      $('gpsAlt').childNodes[0].textContent = alt !== null ? alt.toFixed(1) : '--';
+      $('gpsAcc').childNodes[0].textContent = acc !== null ? acc.toFixed(1) : '--';
+
+      if (alt !== null) {
+        currentGPSAlt = alt;
+        if (baselineGPSAlt === null) baselineGPSAlt = alt;
+        updateDisplay(alt - baselineGPSAlt);
+        setStatus('active', 'GPS aktif — akurasi ±' + (acc ? acc.toFixed(0) : '?') + ' m');
+      } else {
+        setStatus('warn', 'GPS: altitude tidak tersedia (dalam ruangan?)');
+      }
+    }, err => {
+      setStatus('error', 'GPS ditolak atau tidak tersedia');
+    }, { enableHighAccuracy: true, maximumAge: 2000 });
+  }
+
+  function fallbackToGPS() {
+    if (baroSensor) { try { baroSensor.stop(); } catch(e){} }
+    initGPS();
+  }
+
+  // ── calibration ──
+  $('btnCalibrate').addEventListener('click', () => {
+    if (currentPressure !== null) {
+      baselinePressure = currentPressure;
+      setStatus('active', 'Dikalibrasi! Titik dasar = ' + currentPressure.toFixed(2) + ' hPa');
+    }
+    if (currentGPSAlt !== null) {
+      baselineGPSAlt = currentGPSAlt;
+    }
+    history = [];
+    updateDisplay(0);
+  });
+
+  $('btnGPS').addEventListener('click', () => {
+    watchGPS();
+  });
+
+  // ── init ──
+  const hasBarometer = initBarometer();
+  if (!hasBarometer) {
+    setStatus('warn', 'Barometer tidak ditemukan, mencoba GPS…');
+    initGPS();
+  }
+
+  // redraw sparkline on resize
+  window.addEventListener('resize', drawSparkline);
+  drawSparkline();
+</script>
+</body>
+</html>
